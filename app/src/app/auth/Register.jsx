@@ -1,7 +1,9 @@
-import { Text, View, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, ScrollView, Alert } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, ScrollView, Alert, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { registerUser } from '../../services/api';
 
 export default function RegisterScreen() {
@@ -11,6 +13,8 @@ export default function RegisterScreen() {
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [dobDate, setDobDate] = useState(new Date(2000, 0, 1)); // Default sensible starting date
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [blood, setBlood] = useState('');
   const [address, setAddress] = useState('');
 
@@ -26,8 +30,27 @@ export default function RegisterScreen() {
     }
   };
 
+  // Helper to format local date without UTC offset shifting
+  const formatDateLocal = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+
+    if (event.type === 'set' && selectedDate) {
+      setDobDate(selectedDate);
+      setDateOfBirth(formatDateLocal(selectedDate));
+    }
+  };
+
   const handleRegister = async () => {
-    if (!name || !email || !password || !phone || !dateOfBirth || !blood || !address) {
+    if (!name || !email || !password || !phone || !gender || !dateOfBirth || !blood || !address) {
       setError('Please complete all required fields.');
       return;
     }
@@ -36,7 +59,7 @@ export default function RegisterScreen() {
     setError('');
 
     try {
-      await registerUser({ fullName: name.trim(), email: email.trim().toLowerCase(), password, phone, dateOfBirth, blood, address });
+      await registerUser({ fullName: name.trim(), email: email.trim().toLowerCase(), password, phone, gender, dateOfBirth, blood, address });
       Alert.alert('Account created', 'Your account has been created successfully. Please sign in.');
       router.replace('/auth/login');
     } catch (err) {
@@ -67,41 +90,109 @@ export default function RegisterScreen() {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
+          {/* Full Name */}
           <View style={styles.inputGroup}>
             <Ionicons name="person-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
             <TextInput style={styles.input} placeholder="Full name" placeholderTextColor="#94a3b8" value={name} onChangeText={setName} />
           </View>
 
+          {/* Email */}
           <View style={styles.inputGroup}>
             <Ionicons name="mail-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
-            <TextInput style={styles.input} placeholder="Email address" placeholderTextColor="#94a3b8" value={email} onChangeText={setEmail} keyboardType="email-address" />
+            <TextInput style={styles.input} placeholder="Email address" placeholderTextColor="#94a3b8" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
           </View>
 
+          {/* Password */}
           <View style={styles.inputGroup}>
             <Ionicons name="lock-closed-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
             <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#94a3b8" value={password} onChangeText={setPassword} secureTextEntry />
           </View>
 
+          {/* Phone / Tel */}
           <View style={styles.inputGroup}>
-            <Ionicons name="location-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
-            <TextInput style={styles.input} placeholder="Tel" placeholderTextColor="#94a3b8" value={phone} onChangeText={setPhone} />
+            <Ionicons name="call-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
+            <TextInput style={styles.input} placeholder="Tel / Contact" placeholderTextColor="#94a3b8" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
           </View>
 
+          {/* Gender Picker */}
           <View style={styles.inputGroup}>
-            <Ionicons name="location-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
-            <TextInput style={styles.input} placeholder="Gender" placeholderTextColor="#94a3b8" value={gender} onChangeText={setGender} />
+            <Ionicons name="transgender-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
+            <Picker
+              selectedValue={gender}
+              onValueChange={(itemValue) => setGender(itemValue)}
+              style={styles.picker}
+              dropdownIconColor="#60a5fa"
+            >
+              <Picker.Item label="Select Gender" value="" color="#94a3b8" />
+              <Picker.Item label="Male" value="Male" color="#0f172a" />
+              <Picker.Item label="Female" value="Female" color="#0f172a" />
+              <Picker.Item label="Other" value="Other" color="#0f172a" />
+            </Picker>
           </View>
 
+          {/* Date of Birth Picker Button */}
+          <TouchableOpacity style={styles.inputGroup} onPress={() => setShowDatePicker(true)}>
+            <Ionicons name="calendar-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
+            <Text style={[styles.dateText, !dateOfBirth && styles.placeholderText]}>
+              {dateOfBirth ? dateOfBirth : 'Date Of Birth (YYYY-MM-DD)'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Android Picker Direct Injection */}
+          {Platform.OS === 'android' && showDatePicker && (
+            <DateTimePicker
+              value={dobDate}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+            />
+          )}
+
+          {/* iOS Picker Modal */}
+          {Platform.OS === 'ios' && (
+            <Modal visible={showDatePicker} transparent animationType="slide">
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.modalDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={dobDate}
+                    mode="date"
+                    display="spinner"
+                    onChange={handleDateChange}
+                    maximumDate={new Date()}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {/* Blood Group Picker */}
           <View style={styles.inputGroup}>
-            <Ionicons name="location-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
-            <TextInput style={styles.input} placeholder="Date Of Birth" placeholderTextColor="#94a3b8" value={dateOfBirth} onChangeText={setDateOfBirth} />
+            <Ionicons name="water-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
+            <Picker
+              selectedValue={blood}
+              onValueChange={(itemValue) => setBlood(itemValue)}
+              style={styles.picker}
+              dropdownIconColor="#60a5fa"
+            >
+              <Picker.Item label="Select Blood Group" value="" color="#94a3b8" />
+              <Picker.Item label="A+" value="A+" color="#0f172a" />
+              <Picker.Item label="A-" value="A-" color="#0f172a" />
+              <Picker.Item label="B+" value="B+" color="#0f172a" />
+              <Picker.Item label="B-" value="B-" color="#0f172a" />
+              <Picker.Item label="AB+" value="AB+" color="#0f172a" />
+              <Picker.Item label="AB-" value="AB-" color="#0f172a" />
+              <Picker.Item label="O+" value="O+" color="#0f172a" />
+              <Picker.Item label="O-" value="O-" color="#0f172a" />
+            </Picker>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Ionicons name="location-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
-            <TextInput style={styles.input} placeholder="Blood Type" placeholderTextColor="#94a3b8" value={blood} onChangeText={setBlood} />
-          </View>
-
+          {/* Address */}
           <View style={styles.inputGroup}>
             <Ionicons name="location-outline" size={18} color="#60a5fa" style={styles.inputIcon} />
             <TextInput style={styles.input} placeholder="Address" placeholderTextColor="#94a3b8" value={address} onChangeText={setAddress} />
@@ -224,6 +315,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0f172a',
   },
+  picker: {
+    flex: 1,
+    height: 48,
+  },
+  dateText: {
+    flex: 1,
+    lineHeight: 48,
+    fontSize: 15,
+    color: '#0f172a',
+  },
+  placeholderText: {
+    color: '#94a3b8',
+  },
   primaryButton: {
     backgroundColor: '#3b82f6',
     borderRadius: 999,
@@ -282,5 +386,27 @@ const styles = StyleSheet.create({
   highlightText: {
     color: '#2563eb',
     fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    alignItems: 'flex-end',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  modalDoneText: {
+    color: '#2563eb',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
