@@ -2,30 +2,6 @@ import { createUser, findUserByEmail, findUserById, comparePassword, generateTok
 import { logger } from '../utils/logger.js';
 import crypto from 'crypto';
 
-export const register = async (req, res, next) => {
-  try {
-    const { fullName, email, password, phone, gender, dateOfBirth, bloodGroup, address } = req.body;
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    const normalizedPassword = String(password || '').trim();
-
-    if (!normalizedEmail || !normalizedPassword || !fullName) {
-      return res.status(400).json({ success: false, message: 'Please provide your full name, email, and password.' });
-    }
-
-    const existingUser = await findUserByEmail(normalizedEmail);
-    if (existingUser) {
-      return res.status(409).json({ success: false, message: 'Email already registered.' });
-    }
-
-    const userId = await createUser({ fullName: String(fullName).trim(), email: normalizedEmail, password: normalizedPassword, phone: String(phone || '').trim(), gender: String(gender || '').trim(), dateOfBirth, bloodGroup, address });
-    logger.info(`User registered: ${normalizedEmail}`);
-    res.status(201).json({ success: true, message: 'Registration successful.', userId });
-  } catch (error) {
-    logger.error(`Register failed: ${error.message}`);
-    res.status(500).json({ success: false, message: error.message || 'Registration failed.' });
-  }
-};
-
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;

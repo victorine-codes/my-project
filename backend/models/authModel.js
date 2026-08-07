@@ -12,7 +12,6 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   gender: { type: String },
   date_of_birth: { type: String },
-  blood_group: { type: String },
   address: { type: String },
   profile_picture: { type: String },
   role: { type: String, default: 'user' },
@@ -24,7 +23,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-export const createUser = async ({ fullName, email, password, phone, gender, dateOfBirth, bloodGroup, address }) => {
+export const createUser = async ({ fullName, email, password, phone, gender, dateOfBirth, address }) => {
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await User.create({
     full_name: fullName,
@@ -33,7 +32,6 @@ export const createUser = async ({ fullName, email, password, phone, gender, dat
     password: hashedPassword,
     gender,
     date_of_birth: dateOfBirth,
-    blood_group: bloodGroup,
     address
   });
   return user.user_id;
